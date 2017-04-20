@@ -1,0 +1,51 @@
+---
+title: "James McNellie Ranges Homework"
+output:
+  html_notebook: default
+  html_document: default
+---
+setwd("C:/Users/mcnellie/Dropbox/Spring 2017/BCB 546X/Genomic ranges")
+
+
+
+#Importing data and packages
+source("http://bioconductor.org/biocLite.R")</br>
+biocLite()</br>
+biocLite('GenomicRanges')</br>
+library('IRanges')</br>
+library('IRanges')</br>
+library('GenomicRanges')</br>
+library('rtracklayer')</br>
+library(TxDb.Mmusculus.UCSC.mm10.ensGene)</br>
+
+
+###Part I: Loading datasets, formating data, finding overlaps and extracting variants
+```{r}
+txdb <- TxDb.Mmusculus.UCSC.mm10.ensGene #data containing the genomic features for m. musculus
+dbsnp137 <- import("mm10_snp137_chr1_trunc.bed.gz") #importing genetic data from a segment of chromosome 1
+
+collasped_exons <- reduce(exons(txdb), ignore.strand=TRUE) #Orders and extracts just the exons infomartion in txdb
+
+chr1_collasped_exons <- collasped_exons[seqnames(collasped_exons)=="chr1"] #pulling out only those chromosome 1
+
+summary(width(dbsnp137)) #displaying summary data with average, min and max length of variations
+head(dbsnp137)#visualize data
+
+dbsnp137_resized <- dbsnp137 #creating a duplicate dataset
+zw_i <- width(dbsnp137_resized) == 0 #creating a boolean vector based upon if width is equal to 0
+dbsnp137_resized[zw_i] <- resize(dbsnp137_resized[zw_i], width=1) #setting values (widths) that are equal to 0 in dbsnp137_resize to 1 
+
+hits <- findOverlaps(dbsnp137_resized, chr1_collasped_exons, ignore.strand=TRUE) #returning exon regions that overlap in the genotype data (dbsnp137_resized) and in the list of exons (chr1_collasped_exons)
+length(unique(queryHits(hits))) #total number of overlaps
+length(unique(queryHits(hits)))/length(dbsnp137_resized) #proportion of exons that overlap in dbsnp137_resized
+
+var_counts <- countOverlaps(chr1_collasped_exons, dbsnp137_resized, ignore.strand=TRUE) #Counting the number of variations found within each exon
+
+```
+
+###Part 2: Adding a column to data containing number of variants and exporting
+```{r}
+chr1_collasped_exons$num_vars <- var_counts #adding a column for the number of variants found in each exon
+export(chr1_collasped_exons, "James_McNellie_chr1_collasped_exons.bed") #saving (exporting) data
+```
+

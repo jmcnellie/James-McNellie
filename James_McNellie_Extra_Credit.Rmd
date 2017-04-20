@@ -1,0 +1,66 @@
+---
+title: "James McNellie Extra Credit"
+output: html_notebook
+---
+
+setwd("C:/Users/mcnellie/Dropbox/Spring 2017/BCB 546X/Extra Credit")
+
+#downloading and loading required packages
+source("http://bioconductor.org/biocLite.R")</br>
+biocLite()</br>
+biocLite('GenomicRanges')</br>
+library('IRanges')</br>
+
+###Importing data, subsetting and getting promoter region
+```{r}
+mm_gtf <- import('Mus_musculus.GRCm38.75_chr1.gtf.gz') #loading data
+
+table(mm_gtf$gene_biotype) #counting the number of data type/genes, i.e. number of miRNA, protein_coding regions, etcs. 
+chr1_pcg <- mm_gtf[mm_gtf$type=="gene" & mm_gtf$gene_biotype == "protein_coding"] #pulling out and saving all protein coding genes
+summary(width(chr1_pcg)); length(chr1_pcg); head(chr1_pcg) #summarizing and visualizing data
+
+chr1_pcg_3kb_up <- flank(chr1_pcg, width=3000) #pulling in 3kb upstream flanking region
+chr1_pcg_3kb_up2 <- promoters(chr1_pcg, upstream=3000, downstream=0) #another way of pulling in 3kb promoter region, but with option to pull in downstream regions as well
+identical (chr1_pcg_3kb_up, chr1_pcg_3kb_up2) #proving that the two methods create identical information
+
+```
+
+library(BiocInstaller)</br>
+biocLite("BSgenome")</br>
+biocLite("BSgenome.Mmusculus.UCSC.mm10")</br>
+
+###Loading and formatting data 
+```{r}
+library(BSgenome.Mmusculus.UCSC.mm10)
+mm_gm <- BSgenome.Mmusculus.UCSC.mm10
+organism(mm_gm); providerVersion(mm_gm); provider(mm_gm) #information about the dataset
+seqinfo(mm_gm) #summary of the sequence information in mm_gm
+
+mm_gm$chrM #pulling out, but not saving, chromosome M
+mm_gm[[22]] #another way to pull out chromosome M using it's position in the list
+
+library(Biostrings)
+matchPattern("GGCGCGCC", mm_gm$chr1) #looking within chromosome 1 of mm_gm and returning (but not saving) regions that match the given pattern (start, end and width of match)
+
+all(seqlevels(chr1_pcg_3kb_up) %in% seqlevels(mm_gm)) #Illustrating a problem with naming conventions for chromosomes between the two data sets. This query should have returned true
+
+gr <- GRanges(c("chr1", "chr2"), IRanges(start=c(3,4), width=10)) #creating an example Genomic Range with two chromosomes
+seqlevels(gr)#returning how the chromosomes are named 
+seqlevels(gr) <- c("1", "2") #changing chromosome names
+seqlevels(gr) #returning chromosomes, showing that their name has been changed from chr1 to 1
+
+seqlevelsStyle(chr1_pcg_3kb_up) #returning the formatting style for chr1_pcg_3kb_up
+seqlevelsStyle(mm_gm) #returning the formatting style for mm_gm, they do not match
+seqlevelsStyle(chr1_pcg_3kb_up) <- "UCSC" #changing formatting style to match
+
+all(seqlevels(chr1_pcg_3kb_up) %in% seqlevels(mm_gm)) #Running query again and returns true now that the formatting styles, naming conventions, are the same in the two datasets
+```
+
+###Extracting and saving output
+```{r}
+chr1_3kb_seqs <- getSeq(mm_gm, chr1_pcg_3kb_up) #Extracting and saving the 3kb promoter regions in mm_gm
+chr1_3kb_seqs #visualizing the data
+
+writeXStringSet(chr1_3kb_seqs, file="mm10_chr1_3kb_promoters.fasta", format="fasta") #saving the 3kb promoter regions from chromosome 1
+
+```
